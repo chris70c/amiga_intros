@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,width=device-width">
+  <title>Two Live Crew | Premiere</title>
+  <style type="text/css">
+    body   { background:#000; margin:0; padding:10px 0; }
+    canvas { display:block; margin:0 auto; image-rendering:-moz-crisp-edges; image-rendering:pixelated; width:640px; height:512px; }
+  </style>
+  <script type="text/javascript" src="flod_st31.js"></script>
+  <script type="text/javascript" src="2livecrew-premiere.js"></script>
+  <script type="text/javascript">
+    const player = window.FLOD;
+
+    fetch('zapped-out.bin')
+      .then(response => {
+        return response.arrayBuffer();
+      })
+      .then(stream => {
+        if (player.load(stream)) {
+          intro(player);
+        }
+      });
+  </script>
+</head>
+<body>
+  <div id="frame"></div>
+</body>
+</html>
