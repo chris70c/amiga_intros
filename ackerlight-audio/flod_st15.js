@@ -1,8 +1,8 @@
 /*
   Mini FLOD for Intros
   15 instruments Sountrackers
-  version 7.1
-  2018-11-20
+  version 7.2
+  2019-01-22
   Christian Corti
 */
 (function() {
@@ -301,6 +301,7 @@
         if (!this.tickLeft) {
           if (!this.playMode) {
             this.cache = cache.write();
+            this.cache.note.fill(0);
             this.process();
 
             this.cache.volume[0] = this.output[0].audvol;
@@ -671,6 +672,7 @@
             chan.period  = voice.period;
 
             this.cache.last[voice.index] = row.note;
+            this.cache.note[voice.index] = row.note;
           }
 
           if (voice.enabled) { chan.enabled = 1; }
@@ -985,6 +987,7 @@
 
         o.position = 0;
         o.last   = new Array(4).fill(0);
+        o.note   = new Array(4).fill(0);
         o.sample = new Array(4).fill(0);
         o.volume = new Array(4).fill(0);
 

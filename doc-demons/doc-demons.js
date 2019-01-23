@@ -1,0 +1,552 @@
+/*
+  Demons Are Forever Demo
+  Doctor Mabuse Orgasm Crackings (1988) [D.O.C.]
+  Christian Corti
+*/
+function intro(player) {
+"use strict";
+
+  function initialize() {
+    canvc.width  = 352;
+    canvc.height = 279;
+    canvx.imageSmoothingEnabled = false;
+
+    buf1c.width  = 352;
+    buf1c.height = 279;
+    buf1x.imageSmoothingEnabled = false;
+
+    buf1x.drawImage(logo,0,0);
+
+    cb_image = buf1x.getImageData(0,208,352,38);
+    cb_buffer = new Uint32Array(cb_image.data.buffer);
+
+    buf2c.width  = 352;
+    buf2c.height = 20;
+    buf2x.imageSmoothingEnabled = false;
+
+    buf3c.width  = 368;
+    buf3c.height = 20;
+    buf3x.imageSmoothingEnabled = false;
+
+    bigEndian();
+
+    document.getElementById("frame").appendChild(canvc);
+
+    document.addEventListener("flodSync", draw);
+
+    player.version = 3;
+    player.play();
+  }
+
+  function bigEndian() {
+    var a = cb_rgb32;
+    var b = new Uint32Array([a[0]]);
+    var i, l, v;
+
+    if (b[0] == a[0]) { return; }
+
+    for (i = 0, l = a; i < l; i++) {
+      v = a[i];
+      a[i] = ((v & 0xff) << 24) | ((v & 0xff00) << 8) | ((v >> 8) & 0xff00) | ((v >> 24) & 0xff);
+    }
+  }
+
+  function keydownHandler(e) {
+    var c = e.keyCode;
+
+    if (c == 13) {
+      dm_on ^= 1;
+      dm_panel = dm_on;
+    } else if (dm_on) {
+      if ((c > 36 && c < 41) || (c > 64 && c < 69) || (c > 111 && c < 122)) { e.preventDefault(); }
+    }
+  }
+
+  function keyupHandler(e) {
+    if (dm_on) {
+      switch (e.keyCode) {
+        case 37:
+          pa_sx = --pa_sx & 511;
+          break;
+        case 38:
+          pa_sy = --pa_sy & 511;
+          break;
+        case 39:
+          pa_sx = ++pa_sx & 511;
+          break;
+        case 40:
+          pa_sy = ++pa_sy & 511;
+          break;
+        case 46:
+          dm_panel ^= 1;
+          break;
+        case 65:
+        case 66:
+        case 67:
+        case 68:
+          dm_sine = e.keyCode - 64;
+          pa_anim = 1;
+          break;
+        case 112:
+          pa_dx = ++pa_dx & 511;
+          break;
+        case 113:
+          pa_dx = --pa_dx & 511;
+          break;
+        case 114:
+          pa_dy = ++pa_dy & 511;
+          break;
+        case 115:
+          pa_dy = --pa_dy & 511;
+          break;
+        case 116:
+          pa_dx = ++pa_dx & 511;
+          pa_dy = ++pa_dy & 511;
+          break;
+        case 117:
+          pa_dx = --pa_dx & 511;
+          pa_dy = --pa_dy & 511;
+          break;
+        case 118:
+          pa_sx = ++pa_sx & 511;
+          pa_sy = ++pa_sy & 511;
+          break;
+        case 119:
+          pa_sx = --pa_sx & 511;
+          pa_sy = --pa_sy & 511;
+          break;
+        case 120:
+          if (pa_anim != 1) { pa_anim = 3; }
+          break;
+        case 121:
+          if (pa_anim != 1) { pa_anim = 2; }
+          break;
+      }
+    }
+  }
+
+  function updateBoard() {
+    var p = cb_frame;
+    var s = p * 2;
+    var c1, c2, i, l;
+
+    function swap() {
+      for (; i < l; i++) {
+        if (cb_buffer[i] == c1) {
+          cb_buffer[i] = c2;
+        } else {
+          cb_buffer[i] = c1;
+        }
+      }
+    }
+
+    l = cb_rows[p++];
+    i = cb_rows[p];
+
+    c1 = cb_rgb32[s++]
+    c2 = cb_rgb32[s];
+    swap();
+
+    p += 5;
+    l = cb_rows[p++];
+    i = cb_rows[p];
+    s += 9;
+
+    c1 = cb_rgb32[s++];
+    c2 = cb_rgb32[s];
+    swap();
+
+    p += 5;
+    l = cb_rows[p++];
+    i = cb_rows[p];
+
+    c1 = cb_rgb32[10];
+    c2 = cb_rgb32[11];
+    swap();
+
+    p += 5;
+    l = cb_rows[p++];
+    i = cb_rows[p];
+    swap();
+
+    if (++cb_frame > 4) {
+      cb_frame = 0;
+    }
+  }
+
+  function updateBobs() {
+    var i, lx, ly, x, y;
+
+    if (!pa_anim) {
+      if (pa_sine) {
+        pa_index = pa_sine - 1;
+        pa_sine  = 0;
+        pa_anim  = 2;
+
+        pa_cx = pa_cy = 0;
+      } else if (dm_sine) {
+        pa_sine  = dm_sine;
+        pa_index = pa_sine - 1;
+        pa_anim  = 1;
+        dm_sine  = 0;
+
+        pa_cx = pa_cy = 0;
+        pa_sx = pa_sy = 2;
+        pa_dx = pa_dy = 51;
+      }
+    }
+
+    buf2x.clearRect(0,0,352,20);
+
+    x = pa_cx = (pa_cx + pa_sx) & 511;
+    y = pa_cy = (pa_cy + pa_sy) & 511;
+
+    for (i = 0; i < 10; i++) {
+      lx = pa_sinex[pa_index][x];
+      ly = pa_siney[pa_index][y];
+
+      buf1x.drawImage(demon,  0,bo_ptr1[bo_step],32,25, lx,ly,32,25);
+      buf2x.drawImage(demon, 32,bo_ptr2[bo_step],32, 7, lx,(ly / 15) >> 0,32,7);
+
+      x = (x + pa_dx) & 511;
+      y = (y + pa_dy) & 511;
+    }
+
+    buf1x.globalAlpha = 0.525;
+    buf1x.drawImage(buf2c,0,222);
+    buf1x.globalAlpha = 1.0;
+
+    if (++bo_frame == 5) {
+      bo_frame = 0;
+
+      if (pa_anim == 1) {
+        if (!bo_step) {
+          pa_anim = 0;
+        } else {
+          bo_step--;
+        }
+      } else if (pa_anim == 2) {
+        if (bo_step == 11) {
+          pa_anim = 0;
+        } else if (bo_step < 11) {
+          bo_step++;
+        } else {
+          bo_step--;
+        }
+      } else if (pa_anim == 3) {
+        if (bo_step++ == 30) {
+          bo_step = 20;
+        }
+      }
+    }
+
+    if (!dm_on) {
+      if (++pa_frame == pa_timer) {
+        pa_frame = 0;
+
+        pa_sx = pa_data[pa_step++];
+        pa_sy = pa_data[pa_step++];
+        pa_dx = pa_data[pa_step++];
+        pa_dy = pa_data[pa_step++];
+
+        pa_sine  = pa_data[pa_step++];
+        pa_anim  = pa_data[pa_step++];
+        pa_timer = pa_data[pa_step++];
+
+        if (pa_sine) { pa_anim = 1; }
+        if (pa_step == 238) { pa_step = 0; }
+      }
+    }
+  }
+
+  function updateMeters() {
+    var o, v;
+
+    if (player) {
+      o = player.audioCache;
+
+      v = o.note[0];
+      if (v && v != m0_note) { m0_cx = 48; }
+      m0_note = v;
+
+      v = o.note[1];
+      if (v && v != m1_note) { m1_cx = 48; }
+      m1_note = v;
+
+      v = o.note[2];
+      if (v && v != m2_note) { m2_cx = 48; }
+      m2_note = v;
+
+      v = o.note[3];
+      if (v && v != m3_note) { m3_cx = 48; }
+      m3_note = v;
+    } else {
+      v = Math.floor(Math.random() * 14);
+      if (mb_frame == v) { m0_cx = 48; }
+
+      v = Math.floor(Math.random() * 14);
+      if (mb_frame == v) { m1_cx = 48; }
+
+      v = Math.floor(Math.random() * 14);
+      if (mb_frame == v) { m2_cx = 48; }
+
+      v = Math.floor(Math.random() * 14);
+      if (mb_frame == v) { m3_cx = 48; }
+    }
+
+    buf1x.drawImage(meter, m0_cx,0,352,7, 0,m0_pos[mb_frame],352,7);
+    buf1x.drawImage(meter, m1_cx,0,352,7, 0,m1_pos[mb_frame],352,7);
+    buf1x.drawImage(meter, m2_cx,0,352,7, 0,m2_pos[mb_frame],352,7);
+    buf1x.drawImage(meter, m3_cx,0,352,7, 0,m3_pos[mb_frame],352,7);
+
+    if (++mb_frame == 14) {
+      mb_frame = 0;
+
+      v = m0_cx;
+      m0_cx = m3_cx;
+      m3_cx = m2_cx;
+      m2_cx = m1_cx;
+      m1_cx = v;
+    }
+
+    if ((m0_cx += 8) > 304) { m0_cx = 304; }
+    if ((m1_cx += 8) > 304) { m1_cx = 304; }
+    if ((m2_cx += 8) > 304) { m2_cx = 304; }
+    if ((m3_cx += 8) > 304) { m3_cx = 304; }
+  }
+
+  function updatePanel() {
+    var dx = ("000"+ pa_dx.toString(16)).substr(-3);
+    var dy = ("000"+ pa_dy.toString(16)).substr(-3);
+    var sx = ("000"+ pa_sx.toString(16)).substr(-3);
+    var sy = ("000"+ pa_sy.toString(16)).substr(-3);
+    var v;
+
+    buf1x.drawImage(panel,16,27);
+    buf1x.fillRect(74,27,24,28);
+
+    v = parseInt("0x"+ sx.charAt(0)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 74,27,8,5);
+    v = parseInt("0x"+ sx.charAt(1)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 82,27,8,5);
+    v = parseInt("0x"+ sx.charAt(2)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 90,27,8,5);
+
+    v = parseInt("0x"+ sy.charAt(0)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 74,34,8,5);
+    v = parseInt("0x"+ sy.charAt(1)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 82,34,8,5);
+    v = parseInt("0x"+ sy.charAt(2)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 90,34,8,5);
+
+    v = parseInt("0x"+ dx.charAt(0)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 74,41,8,5);
+    v = parseInt("0x"+ dx.charAt(1)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 82,41,8,5);
+    v = parseInt("0x"+ dx.charAt(2)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 90,41,8,5);
+
+    v = parseInt("0x"+ dy.charAt(0)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 74,48,8,5);
+    v = parseInt("0x"+ dy.charAt(1)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 82,48,8,5);
+    v = parseInt("0x"+ dy.charAt(2)) << 3;
+    buf1x.drawImage(small, v,0,8,5, 90,48,8,5);
+  }
+
+  function updateScroll() {
+    var l = true;
+    var y = 248;
+    var v;
+
+    if (!sc_delay) {
+      sc_cx += sc_speed;
+
+      if (sc_cx >= 16) {
+        sc_cx -= 16;
+
+        do {
+          v = sc_text.charAt(sc_pos++);
+
+          switch (v) {
+            case "S":
+              sc_speed = sc_text.charCodeAt(sc_pos++) - 48;
+              break;
+            case "U":
+              ts_jump = 1;
+              ts_speed = sc_text.charCodeAt(sc_pos++) - 48;
+              break;
+            case "K":
+              if (!dm_active) {
+                dm_active = 1;
+                document.addEventListener("keydown", keydownHandler, false)
+                document.addEventListener("keyup", keyupHandler);
+              }
+              break;
+            case "N":
+              ts_stop = 1;
+              break;
+            case "W":
+              sc_delay = sc_text.charCodeAt(sc_pos++) - 48;
+              break;
+            default:
+              v = sc_charx[v];
+              buf3x.drawImage(font, v,0,16,20, 352-sc_cx,0,16,20);
+              l = false;
+              break;
+          }
+
+          if (sc_pos == sc_len) { sc_pos = 0; }
+        } while (l);
+      }
+
+      v = 368 - sc_speed;
+      buf3x.drawImage(buf3c, sc_speed,0,v,20, 0,0,v,20);
+      buf3x.fillRect(v,0,sc_speed,20);
+    } else {
+      sc_delay--;
+    }
+
+    if (ts_jump) {
+      y += ts_sine[ts_pos];
+      ts_pos += ts_speed;
+      if (ts_pos >= ts_len) { ts_pos -= ts_len; }
+
+      if (ts_stop && y == 248) {
+        ts_pos = 0;
+        ts_stop = 0;
+        ts_jump = 0;
+      }
+    }
+
+    buf1x.drawImage(buf3c, 0,0,352,20, 0,y,352,20);
+  }
+
+  function draw() {
+    buf1x.drawImage(logo,0,0);
+    updateMeters();
+
+    updateBoard();
+    buf1x.putImageData(cb_image,0,208);
+
+    updateBobs();
+    updateScroll();
+    if (dm_panel) { updatePanel(); }
+
+    canvx.drawImage(buf1c,0,0);
+
+    requestAnimationFrame(draw);
+  }
+
+  const demon = new Image();
+  const font  = new Image();
+  const logo  = new Image();
+  const meter = new Image();
+  const panel = new Image();
+  const small = new Image();
+
+  demon.src = "data:image/png;base64,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";
+  font.src  = "data:image/png;base64,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";
+  logo.src  = "data:image/png;base64,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";
+  meter.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAApAAAAAHCAIAAAAwK+rVAAAAU0lEQVRo3u3aQQ3AQAhFwa+t+qptLbUG4MySzMuccEAgjyQlpWYMTHglKSk1Y2DCkaSk1IyBCZ8kJaVmDEywWkiyYcMCjneS3LBhAe+xknyJw/1+TswiC5cmaV8AAAAASUVORK5CYII=";
+  panel.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAA5AQMAAACbJD58AAAABlBMVEUAAAD///+l2Z/dAAAAAXRSTlMAQObYZgAAAPdJREFUKM+lzDFrwkAABeAngXYp3npd8hsiB+1y6F/pdC7OpYVSWvoDXAWh/gVB1MHBBNdTVzOIOrkonARUUImnhwmI0cE3fTweD/JxlPtew7ZtyKfn6pukjDF8Tiv8Q4KxB0gMnGNLIUnJbHO4mNtnTnzm3Drrbl7HArCzWcz/Mj8ClFkWdpNJkQMsncYwavVW02zvOKPxGb12FkZBQsj/1zLvBY4mZSJfSJVPnHuLsaGYeSX3tP1VmglJlV8K/UzNsNHz6y3DVdFvtw3fu36riUMCs70Wvo0o3JjqUss1k2OFIAqhe2DH5dzSOmOf88AwJEQpvd0DiTuNi/LWHGsAAAAASUVORK5CYII=";
+  small.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAAAFAQMAAAC3jXbjAAAABlBMVEUAAAD///+l2Z/dAAAAAXRSTlMAQObYZgAAAE5JREFUCNctjDERwDAQwwLgAQRGxsIphI4eAs4ADKAwMnrw0OSuGnU6NQz4ygwATydNjwpkaUORTaNfr90xY2qtLe5Kaaj+Aom7z0nnwQ9osTPRRonwzAAAAABJRU5ErkJggg==";
+
+  const canvc = document.createElement("canvas");
+  const canvx = canvc.getContext("2d", {alpha: false});
+  const buf1c = document.createElement("canvas");
+  const buf1x = buf1c.getContext("2d", {alpha: false});
+  const buf2c = document.createElement("canvas");
+  const buf2x = buf2c.getContext("2d", {alpha: false});
+  const buf3c = document.createElement("canvas");
+  const buf3x = buf3c.getContext("2d", {alpha: false});
+
+  const pa_sinex = [
+    new Uint8Array([162,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,177,178,179,180,181,182,183,184,185,186,187,187,188,189,190,191,192,193,194,194,195,196,197,198,199,199,200,201,202,203,203,204,205,206,207,207,208,209,210,210,211,212,213,213,214,215,215,216,217,217,218,219,219,220,220,221,222,222,223,223,224,224,225,226,226,227,227,228,228,228,229,229,230,230,231,231,232,232,232,233,233,233,234,234,234,235,235,235,235,236,236,236,236,237,237,237,237,237,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,237,237,237,237,237,236,236,236,236,235,235,235,235,234,234,234,233,233,233,232,232,232,231,231,230,230,229,229,228,228,228,227,227,226,226,225,224,224,223,223,222,222,221,220,220,219,219,218,217,217,216,215,215,214,213,213,212,211,210,210,209,208,207,207,206,205,204,203,203,202,201,200,199,199,198,197,196,195,194,194,193,192,191,190,189,188,187,187,186,185,184,183,182,181,180,179,178,177,177,176,175,174,173,172,171,170,169,168,167,166,165,164,163,162,161,161,160,159,158,157,156,155,154,153,152,151,150,149,148,147,146,146,145,144,143,142,141,140,139,138,137,136,136,135,134,133,132,131,130,129,129,128,127,126,125,124,124,123,122,121,120,120,119,118,117,116,116,115,114,113,113,112,111,110,110,109,108,108,107,106,106,105,104,104,103,103,102,101,101,100,100,99,99,98,97,97,96,96,95,95,95,94,94,93,93,92,92,91,91,91,90,90,90,89,89,89,88,88,88,88,87,87,87,87,86,86,86,86,86,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,86,86,86,86,86,87,87,87,87,88,88,88,88,89,89,89,90,90,90,91,91,91,92,92,93,93,94,94,95,95,95,96,96,97,97,98,99,99,100,100,101,101,102,103,103,104,104,105,106,106,107,108,108,109,110,110,111,112,113,113,114,115,116,116,117,118,119,120,120,121,122,123,124,124,125,126,127,128,129,129,130,131,132,133,134,135,136,136,137,138,139,140,141,142,143,144,145,146,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161]),
+    new Uint8Array([115,116,118,119,120,121,122,124,125,126,127,129,130,131,132,133,135,136,137,138,139,141,142,143,144,146,147,148,149,150,152,153,154,155,156,158,159,160,161,163,164,165,166,167,169,170,171,172,173,175,176,177,178,180,181,182,183,184,186,187,188,189,190,192,193,194,195,197,198,199,200,201,203,204,205,206,207,209,210,211,212,214,215,216,217,218,220,221,222,223,224,226,227,228,229,231,232,233,234,235,237,238,239,237,236,234,233,231,230,228,227,225,224,222,221,219,218,216,215,213,212,210,209,207,206,204,203,201,200,198,197,195,194,192,191,189,188,186,185,183,182,180,179,177,176,174,173,171,170,168,167,165,164,162,160,159,157,156,154,153,151,150,148,147,145,144,142,141,139,138,136,135,133,132,130,129,127,126,124,123,121,120,118,117,115,114,112,111,109,108,106,105,103,102,100,99,97,96,94,93,91,90,88,87,85,86,87,89,90,91,92,93,95,96,97,98,99,101,102,103,104,105,107,108,109,110,111,113,114,115,116,118,119,120,121,122,124,125,126,127,128,130,131,132,133,134,136,137,138,139,140,142,143,144,145,146,148,149,150,151,152,154,155,156,157,158,160,161,162,163,164,166,167,168,169,170,172,173,174,175,176,178,179,180,181,183,184,185,186,187,189,190,191,192,193,195,196,197,198,199,201,202,203,204,205,207,208,209,209,208,208,207,207,206,206,205,205,204,204,203,203,203,202,202,201,201,200,200,199,199,198,198,197,197,197,196,196,195,195,194,194,193,193,192,192,191,191,191,190,190,189,189,188,188,187,187,186,186,185,185,185,184,184,183,183,182,182,181,181,180,180,180,179,179,178,178,177,177,176,176,175,175,174,174,174,173,173,172,172,171,171,170,170,169,169,168,168,168,167,167,166,166,165,165,164,164,163,163,162,162,162,161,161,160,160,159,159,158,158,157,157,156,156,155,155,154,154,154,153,153,152,152,151,151,150,150,149,149,148,148,147,147,146,146,146,145,145,144,144,143,143,142,142,141,141,140,140,139,139,138,138,138,137,137,136,136,135,135,134,134,133,133,132,132,131,131,130,130,130,129,129,128,128,127,127,126,126,125,125,124,124,123,123,122,122,122,121,121,120,120,119,119,118,118,117,117,116,116,115,115,114,114]),
+    new Uint8Array([86,87,89,90,91,92,93,95,96,97,98,99,101,102,103,104,105,107,108,109,110,111,113,114,115,116,117,119,120,121,122,124,125,126,127,128,130,131,132,133,134,136,137,138,139,140,142,143,144,145,146,148,149,150,151,152,154,155,156,157,158,160,161,162,163,164,166,167,168,169,170,172,173,174,175,176,178,179,180,181,182,184,185,186,187,188,190,191,192,193,194,196,197,198,199,200,202,203,204,205,207,208,209,210,211,213,214,215,216,217,219,220,221,222,223,225,226,227,228,229,231,232,233,234,235,237,238,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,239,238,237,235,234,233,232,231,229,228,227,226,225,223,222,221,220,219,217,216,215,214,213,211,210,209,208,207,205,204,203,202,200,199,198,197,196,194,193,192,191,190,188,187,186,185,184,182,181,180,179,178,176,175,174,173,172,170,169,168,167,166,164,163,162,161,160,158,157,156,155,154,152,151,150,149,148,146,145,144,143,142,140,139,138,137,136,134,133,132,131,130,128,127,126,125,124,122,121,120,119,117,116,115,114,113,111,110,109,108,107,105,104,103,102,101,99,98,97,96,95,93,92,91,90,89,87,86,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85]),
+    new Uint8Array([162,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,177,178,179,180,181,182,183,184,185,186,187,187,188,189,190,191,192,193,194,194,195,196,197,198,199,199,200,201,202,203,203,204,205,206,207,207,208,209,210,210,211,212,213,213,214,215,215,216,217,217,218,219,219,220,220,221,222,222,223,223,224,224,225,226,226,227,227,228,228,228,229,229,230,230,231,231,232,232,232,233,233,233,234,234,234,235,235,235,235,236,236,236,236,237,237,237,237,237,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,238,237,237,237,237,237,236,236,236,236,235,235,235,235,234,234,234,233,233,233,232,232,232,231,231,230,230,229,229,228,228,228,227,227,226,226,225,224,224,223,223,222,222,221,220,220,219,219,218,217,217,216,215,215,214,213,213,212,211,210,210,209,208,207,207,206,205,204,203,203,202,201,200,199,199,198,197,196,195,194,194,193,192,191,190,189,188,187,187,186,185,184,183,182,181,180,179,178,177,177,176,175,174,173,172,171,170,169,168,167,166,165,164,163,162,161,161,160,159,158,157,156,155,154,153,152,151,150,149,148,147,146,146,145,144,143,142,141,140,139,138,137,136,136,135,134,133,132,131,130,129,129,128,127,126,125,124,124,123,122,121,120,120,119,118,117,116,116,115,114,113,113,112,111,110,110,109,108,108,107,106,106,105,104,104,103,103,102,101,101,100,100,99,99,98,97,97,96,96,95,95,95,94,94,93,93,92,92,91,91,91,90,90,90,89,89,89,88,88,88,88,87,87,87,87,86,86,86,86,86,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,86,86,86,86,86,87,87,87,87,88,88,88,88,89,89,89,90,90,90,91,91,91,92,92,93,93,94,94,95,95,95,96,96,97,97,98,99,99,100,100,101,101,102,103,103,104,104,105,106,106,107,108,108,109,110,110,111,112,113,113,114,115,116,116,117,118,119,120,120,121,122,123,124,124,125,126,127,128,129,129,130,131,132,133,134,135,136,136,137,138,139,140,141,142,143,144,145,146,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161])
+  ];
+
+  const pa_siney = [
+    new Uint8Array([192,192,192,192,192,192,192,192,192,192,192,192,192,192,191,191,191,191,191,190,190,190,190,189,189,189,189,188,188,188,187,187,187,186,186,186,185,185,184,184,183,183,182,182,182,181,181,180,180,179,178,178,177,177,176,176,175,174,174,173,173,172,171,171,170,169,169,168,167,167,166,165,164,164,163,162,161,161,160,159,158,157,157,156,155,154,153,153,152,151,150,149,148,148,147,146,145,144,143,142,141,141,140,139,138,137,136,135,134,133,132,131,131,130,129,128,127,126,125,124,123,122,121,120,119,118,117,116,115,115,114,113,112,111,110,109,108,107,106,105,104,103,102,101,100,100,99,98,97,96,95,94,93,92,91,90,90,89,88,87,86,85,84,83,83,82,81,80,79,78,78,77,76,75,74,74,73,72,71,70,70,69,68,67,67,66,65,64,64,63,62,62,61,60,60,59,58,58,57,57,56,55,55,54,54,53,53,52,51,51,50,50,49,49,49,48,48,47,47,46,46,45,45,45,44,44,44,43,43,43,42,42,42,42,41,41,41,41,40,40,40,40,40,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,40,40,40,40,40,41,41,41,41,42,42,42,42,43,43,43,44,44,44,45,45,45,46,46,47,47,48,48,49,49,49,50,50,51,51,52,53,53,54,54,55,55,56,57,57,58,58,59,60,60,61,62,62,63,64,64,65,66,67,67,68,69,70,70,71,72,73,74,74,75,76,77,78,78,79,80,81,82,83,83,84,85,86,87,88,89,90,90,91,92,93,94,95,96,97,98,99,100,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,131,132,133,134,135,136,137,138,139,140,141,141,142,143,144,145,146,147,148,148,149,150,151,152,153,153,154,155,156,157,157,158,159,160,161,161,162,163,164,164,165,166,167,167,168,169,169,170,171,171,172,173,173,174,174,175,176,176,177,177,178,178,179,180,180,181,181,182,182,182,183,183,184,184,185,185,186,186,186,187,187,187,188,188,188,189,189,189,189,190,190,190,190,191,191,191,191,191,192,192,192,192,192,192,192,192,192,192,192,192,192]),
+    new Uint8Array([190,189,188,188,187,186,185,184,183,182,181,181,180,179,178,177,176,175,174,174,173,172,171,170,169,168,167,167,166,165,164,163,162,161,160,160,159,158,157,156,155,154,153,153,152,151,150,149,148,147,146,146,145,144,143,142,141,140,139,139,138,137,136,135,134,133,132,132,131,130,129,128,127,126,125,125,124,123,122,121,120,119,118,118,117,116,115,114,113,112,111,111,110,109,108,107,106,105,104,104,103,102,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,102,103,104,104,105,106,107,108,109,110,111,111,112,113,114,115,116,117,118,118,119,120,121,122,123,124,125,125,126,127,128,129,130,131,132,132,133,134,135,136,137,138,139,139,140,141,142,143,144,145,146,146,147,148,149,150,151,152,153,153,154,155,156,157,158,159,160,160,161,162,163,164,165,166,167,167,168,169,170,171,172,173,174,174,175,176,177,178,179,180,181,181,182,183,184,185,186,187,188,188,189,190,191,190,188,187,185,184,182,181,180,178,177,175,174,172,171,170,168,167,165,164,162,161,160,158,157,155,154,152,151,149,148,147,145,144,142,141,139,138,137,135,134,132,131,129,128,127,125,124,122,121,119,118,117,115,114,112,111,109,108,107,105,104,102,101,99,98,97,95,94,92,91,89,88,87,85,84,82,81,79,78,76,75,74,72,71,69,68,66,65,64,62,61,59,58,56,55,54,52,51,49,48,46,45,46,48,49,51,52,54,55,56,58,59,61,62,64,65,66,68,69,71,72,74,75,76,78,79,81,82,84,85,87,88,89,91,92,94,95,97,98,99,101,102,104,105,107,108,109,111,112,114,115,117,118,119,121,122,124,125,127,128,129,131,132,134,135,137,138,139,141,142,144,145,147,148,149,151,152,154,155,157,158,160,161,162,164,165,167,168,170,171,172,174,175,177,178,180,181,182,184,185,187,188,190,191]),
+    new Uint8Array([191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,191,190,189,188,186,185,184,183,182,181,180,178,177,176,175,174,173,172,170,169,168,167,166,165,164,162,161,160,159,158,157,156,154,153,152,151,150,149,148,147,145,144,143,142,141,140,139,137,136,135,134,133,132,131,129,128,127,126,125,124,123,121,120,119,118,117,116,115,113,112,111,110,109,108,107,105,104,103,102,101,100,99,97,96,95,94,93,92,91,89,88,87,86,85,84,83,82,80,79,78,77,76,75,74,72,71,70,69,68,67,66,64,63,62,61,60,59,58,56,55,54,53,52,51,50,48,47,46,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,45,46,47,48,50,51,52,53,54,55,56,58,59,60,61,62,63,64,66,67,68,69,70,71,72,74,75,76,77,78,79,80,82,83,84,85,86,87,88,89,91,92,93,94,95,96,97,99,100,101,102,103,104,105,107,108,109,110,111,112,113,115,116,117,118,119,120,121,123,124,125,126,127,128,129,131,132,133,134,135,136,137,139,140,141,142,143,144,145,147,148,149,150,151,152,153,154,156,157,158,159,160,161,162,164,165,166,167,168,169,170,172,173,174,175,176,177,178,180,181,182,183,184,185,186,188,189,190,191]),
+    new Uint8Array([38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,39,39,39,39,39,39,39,39,40,40,40,40,40,40,41,41,41,41,42,42,42,42,42,43,43,43,43,44,44,44,44,45,45,45,46,46,46,47,47,47,48,48,48,49,49,49,50,50,50,51,51,52,52,52,53,53,54,54,55,55,55,56,56,57,57,58,58,59,59,60,60,61,61,62,62,63,63,64,64,65,65,66,67,67,68,68,69,69,70,71,71,72,72,73,74,74,75,75,76,77,77,78,79,79,80,81,81,82,83,83,84,85,85,86,87,87,88,89,89,90,91,92,92,93,94,95,95,96,97,98,98,99,100,101,101,102,103,104,104,105,106,107,108,108,109,110,111,112,112,113,114,115,116,117,117,118,119,120,121,122,123,123,124,125,126,127,128,129,129,130,131,132,133,134,135,136,136,137,138,139,140,141,142,143,144,145,145,146,147,148,149,150,151,152,153,154,155,156,157,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,193,192,191,190,189,188,187,186,185,184,183,182,181,180,179,178,177,176,175,174,173,173,172,171,170,169,168,167,166,165,164,163,162,161,160,159,158,157,157,156,155,154,153,152,151,150,149,148,147,146,145,145,144,143,142,141,140,139,138,137,136,136,135,134,133,132,131,130,129,129,128,127,126,125,124,123,123,122,121,120,119,118,117,117,116,115,114,113,112,112,111,110,109,108,108,107,106,105,104,104,103,102,101,101,100,99,98,98,97,96,95,95,94,93,92,92,91,90,89,89,88,87,87,86,85,85,84,83,83,82,81,81,80,79,79,78,77,77,76,75,75,74,74,73,72,72,71,71,70,69,69,68,68,67,67,66,65,65,64,64,63,63,62,62,61,61,60,60,59,59,58,58,57,57,56,56,55,55,55,54,54,53,53,52,52,52,51,51,50,50,50,49,49,49,48,48,48,47,47,47,46,46,46,45,45,45,44,44,44,44,43,43,43,43,42,42,42,42,42,41,41,41,41,40,40,40,40,40,40,39,39,39,39,39,39,39,39,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38])
+  ];
+
+  const bo_ptr1 = new Uint16Array([0,25,50,75,100,125,150,175,200,225,250,275,300,325,350,375,400,425,450,475,500,525,550,575,600,625,650,625,600,575,550]);
+  const bo_ptr2 = new Uint8Array([0,7,14,21,28,35,42,49,56,63,70,77,84,91,98,105,112,119,126,133,140,147,154,161,168,175,182,175,168,161,154]);
+
+  const cb_rgb32 = new Uint32Array([0xff733131,0xffad6363,0xff8c2121,0xffbd5252,0xff9c1010,0xffce4242,0xffad0000,0xffde3131,0xff000000,0xff000000,0xff525252,0xff8c8c8c,0xff525252,0xff8c8c8c,0xff525252,0xff8c8c8c,0xff525252,0xff8c8c8c,0xff634242,0xff9c7373]);
+  const cb_rows  = new Uint16Array([1408,1056,704,352,0,0,3520,2816,2464,2112,1760,1408,7040,6336,5280,4576,4224,3520,13376,12672,10912,9504,8096,7040]);
+
+  const m0_pos = new Uint8Array([17,17,17,17,16,16,15,15,14,13,12,11,10,9,18]);
+  const m1_pos = new Uint8Array([8,7,6,5,4,3,2,2,1,1,0,0,0,0,9]);
+  const m2_pos = new Uint8Array([0,0,0,0,1,1,2,2,3,4,5,6,7,8,0]);
+  const m3_pos = new Uint8Array([9,10,11,12,13,14,15,15,16,16,17,17,17,17,8]);
+
+  const pa_data = new Int16Array([4,4,51,51,1,3,512,4,-4,51,51,0,2,255,4,-4,51,51,0,1,64,4,4,51,16,0,2,384,4,4,51,16,0,1,64,4,4,16,51,0,2,384,4,4,16,51,0,1,64,12,9,20,20,0,2,384,12,9,20,20,0,1,64,505,9,128,128,0,2,512,505,9,128,128,0,1,64,1,1,51,51,2,0,512,2,2,51,51,0,3,512,2,2,51,51,0,1,128,2,254,51,51,3,2,512,2,254,51,51,0,1,64,6,7,37,51,4,2,512,6,7,37,51,0,1,64,7,0,51,51,3,2,512,7,0,51,51,0,1,64,505,255,11,3,1,2,512,505,255,11,3,0,1,64,7,5,51,22,4,2,512,7,5,51,22,0,1,64,4,4,33,9,3,3,512,4,4,33,9,0,1,64,4,8,497,21,4,2,512,4,8,497,21,0,1,64,3,3,103,103,2,2,512,3,3,103,103,0,1,64,7,508,51,22,4,2,512,7,508,51,22,0,1,64,6,6,22,22,2,2,512,6,6,22,22,0,1,64]);
+
+  const sc_text  = "     S5    ignition!                 kick down!             let's do it!                     S3d.o.c (doctor mabuse orgasm crackings) strikes forward !!!                   S5   welcome to one of the most succesful and powerful amiga demos !!!                    S6to maintain the high performance and reliability of this demo, avoid using or storing it in the following conditions...           U1dusty places             U2near heat sources such as hell, etc.             in high humidity areas such as the swimming pool                   U1places exposed to direct sunlight especially in a closed car                    U2extremely cold places                        N and don't forget            U1keep the volume set to a comfortable listening level, as excess volumes could damage your hearing  !!!                   for traffic safety, it is recommended that the amiga not be used while operating a motor vehicle.              S4 Nyou wait for the greetings ??           we hope you have got some time now...        otherwise you will not be able to watch the greetings flickering through this bloody S5scroll....              at first some credits to this wonderful               S3d.o.c demo      Wz             S4  this fascinating demonstration  coded by      S3 U1 ! unknown !      Wz        S4  N soundtrack composed by      S3  U1  ! frog !       Wz             S4 Nall graphics above the scroll pixeled by      S3  U1  ! esteban !      Wz           S4 Nthis amazing (?) (welcher idiot hat das fragezeichen da hingesetzt ??) scrolltext written by             S3 U1  ! doctor mabuse !   Wz          S4 N           swiss representation by        S3 U1      the impotent freak   Wz N             charset by     S3 U1      future light      Wz N and another d.o.c member is     S3 U1   ! zoci joe !     Wz N    S4most probably (?) released on 21.5.88 at dns's and rage's copy party - our fascinating magazine on disk -     S3 U2  ! p.e.n.i.s !     Wz N    S4we need some good arcticle writer !!!        if you are interested contact us - now !!!!            so it is - and here it is - our contact address - write the following on your letter (write only (when i say only - i mean only !!) the following three lines - no!! name - neither wolfgang amadeus nor r.mueller or such a shit!)   write :      S3 U1 plk 089114 c     Wy        -           2300 kiel 1      Wz      -     S3 U1 west-germany      Wy !!!!        N S4pay attention  !!!       in a moment you are able to create your own ball animations.....        keep on...       never press reset in a d.o.c demo until you have read the whole scrolltext...       maybe you should lay down ?        but don't fall asleep !!!         was macht ein neger, wenn er schlaeft ??        ein niggerchen !!!!              und nun wieder die aktuelle durchsaege -aeh- sage des wetter-tarzans  -   tagsueber ist es meist tag, wobei es nachts auch dunkel sein kann.  der wind dreht geschwind aus schwachsinnigen richtungen, wobei eine windstaerke von 5 bis pi quadrat erreicht werden kann.  das war wieder wetter-tarzan.   yoladrihuu!.     ok, for the non-german - that was our weather tarzan !!    yeah, man !!    for the guys, who are just travelling by car -  here it comes the updatest message from the german 'verkehrs-tarzan' -  auf der achterbahn ist es streckenweise kneblig, achten sie auf den geisterfahrer im vw cabrio kaefer...   wir wuenschen ihnen weiterhin eine tube fahrt.     biiiiiiiiip.             and now...        now some messages...                S4 hey silicion league (this message for the ram hunter)        1. i (dr.m) think it's not my milk-bottle-holder  -  it's my beer, whiskey, pernod, amaretto, kuestennebel, gin, bacardi, elephants holder !   2. who's running out of words ?  3. who asked the question number two ?   4. who is going to ask question number five ?    5. can you tell me ?!?      6. geht das los oder geht das los ?       7. jaja heisst klei mi an' mors !     8. running out of words !?!                hey atoemchen / champs !   oh mein geld ! oh mein geld !  try throwing 5 dm coins in the phone box instead of ten pfennig coins...     don't forget to remove daily the dust from the disks...      hey all looooooosers !    don't contact us for swapping...          hey megaforce france !    i sent a package to the address you gave me, but it came back...   the postman couldn't find your house...    or do you live in the underground...           hey oks import division !     congratulations zum rausschmiss dieser kieler schwuchtel named alex...        hey bullen !!!   fuck yourself...              jetzt wird's ernst, leute !!!       only a few lines more bullshit...        and after 'em...     the unremovable greetings...     ahhhhhhhh!!!     good morning.         hey all guys there...   thanx for all those letters...     but we think it's impossible to answer all of 'em...     we get average eight letters a day and so it's nearly impossible to send them back...     1. we have not so much time to answer each of 'em !    2. we would answer your letters if you enclosed the return postage !   3. answering all your letters would cost about 70 deutschmark the week - that means we would have to pay about 280! marks a month...   and that's impossible...         okay, so loooooooooosers do not contact us anymore...      winners are welcome of course !!             if you think what i think it's time for the greetings...         and here they go !!!           all members of dr. mabuse orgasm crackings send hand-shakes to the following solos and groups...       again alphabetical order and some messages !?   S4 N      hip hop hippel di hops to          alpha flight (we'll have a hard competition fight with our p.e.n.i.s and your cracker journal)     -       antitrax 2010        -         amiga i.c.e (the goonies)     -     bamiga sector one (thanx for contacting us) and the kent team (thanx, too)     -     bfbs (nice from you to name the painter of your intro pic...  it was drawn by d.o.c member esteban for you - have you forgotten it ???)        -     bitstoppers     -     blizzard     -      cbc       -       champs (atoemchen / oh mein geld ! oh mein geld ! you're funny...)       -    c.h.h (what's with the vi-deos ?)       -        commando frontier     -        cool       -       danish gold     -     def jam     -     dominators     -     dynamic systems and rage (see you on may the 21st !)       -      federation against copyright    -      fairlight     -     fun and function       -       gigaflops 2112     -     garfield / bfbs (oder wo soll ich dich einordnen ?)     -     at this place ...  gaehn....    x.... we know you would like to see your group-name here...    but we can't greet you...   because one of you've stolen letters from d.o.c at the post office...    and here's the last warning...    you know we've much much much better connections to the post and if you go on stealing letters and disks from us - or if you continue talking bullshit - it could happen that you won't receive anymore letters....     -      hagar / the connection       -      heavy bits italian bad boys / esg       -     jungle command (thanx for your letter)     -     kongoman     -     movers (hey markus... sorry about the video...)     -     mr. ram and executer (see you in aachen ?)     -     motley crue team  (or is your name already alcatraz ? - if so - of course greetings to alcatraz !)      -     nato       -       north star      -       northern lights        -       oks import division       -       pulle flens     -     quadlite (zeronine! on the waescheline)     -    radwar ent.     -      red sector (hey dirk ! sorry for the late reply, but we had to decode your phonenumber !?!)      -      red / professionals (still waiting for your articles...)       -       sinners / powerstation     -     silicon league ! (messages gab es schon... alles kann ich nur sagen - hau die huehner und hock di hi !!)       -          skywalker     -     sodan / magician 42     -     steelpulse (esp. to the amiga power (nice, that you liked our scroll concepts...))     -     syndicate dk      -      swatch      -     taurus one     -      the commodore guys (ftf)     -     tgm crew      -     the light circle (hey duke! du banane hast es doch tatsaechlich vergessen...  )      -      the light force      -     the unknown five     -       the young ones     -     the new dimension     -     the new masters      -       the sofkiller crew     -      the squad      -      jon / t.u.i (new york)      -       w.c.s     and to all other junkies !!!       okay !!!   K    from now on you are able to create your own ball animations !!!       here is a quick clarification to it....          S2 N   1. press 'enter' (not return!) to quit the demo mode !!   2. press 'f1' to increase the x-value   3. press 'f2' to decrease the x-value   4. press 'f3' to increase the y-value   5. press 'f4' to decrease the y-value    6. press 'f5' to increase both values    7. press 'f6' to decrease both values   8. press 'f7' to increase the x - and the y - speed   9. press 'f8' to decrease the x - and the y - speed   10. press 'f9' for mutation ball / demon   11. press 'f10' for mutation demon / ball   13. use the cursor keys left / right for  x - speed de-and increasing  14. use the cursor keys up / down for y - speed de- and increasing   15. press delete to remove the thing at the top left corner   16. press 'enter' to reactivate the demo mode   17. press 'a' to 'd' for different animations   S3 let's have fun sonst bist du dran !!!            end of transmission                             ";
+  const sc_len   = sc_text.length;
+  const sc_charx = {
+    "a":   0,"b":  16,"c":  32,"d":  48,"e":  64,"f":  80,"g":  96,
+    "h": 112,"i": 128,"j": 144,"k": 160,"l": 176,"m": 192,"n": 208,
+    "o": 224,"p": 240,"q": 256,"r": 272,"s": 288,"t": 304,"u": 320,
+    "v": 336,"w": 352,"x": 368,"y": 384,"z": 400,"0": 416,"1": 432,
+    "2": 448,"3": 464,"4": 480,"5": 496,"6": 512,"7": 528,"8": 544,
+    "9": 560,".": 576,"!": 592,"-": 608,",": 624,"C": 640,"?": 656,
+    "/": 672,"(": 688,")": 704,"'": 720,":": 736," ": 752
+  };
+
+  const ts_sine = new Uint8Array([0,0,0,0,0,1,1,2,2,3,4,5,6,7,8,8,9,10,11,12,13,14,15,15,16,16,17,17,17,17,18,17,17,17,17,16,16,15,15,14,13,12,11,10,9,9,8,7,6,5,4,3,2,2,1,1,0,0,0,0]);
+  const ts_len  = ts_sine.length;
+
+  var bo_frame = 0;
+  var bo_step  = 0;
+
+  var cb_image  = null;
+  var cb_buffer = null;
+  var cb_frame  = 0;
+
+  var dm_active = 0;
+  var dm_on     = 0;
+  var dm_panel  = 0;
+  var dm_sine   = 0;
+
+  var mb_frame = 0;
+  var m0_cx    = 208;
+  var m1_cx    = 304;
+  var m2_cx    = 272;
+  var m3_cx    = 240;
+  var m0_note  = 0;
+  var m1_note  = 0;
+  var m2_note  = 0;
+  var m3_note  = 0;
+
+  var pa_timer = 1160;
+  var pa_frame = 0;
+  var pa_step  = 0;
+  var pa_anim  = 3;
+  var pa_sine  = 0;
+  var pa_index = 0;
+  var pa_sx    = 0;
+  var pa_sy    = 0;
+  var pa_dx    = 0;
+  var pa_dy    = 0;
+  var pa_cx    = 511;
+  var pa_cy    = 282;
+
+  var sc_delay = 0;
+  var sc_pos   = 0;
+  var sc_speed = 1;
+  var sc_cx    = 0;
+
+  var ts_jump  = 0;
+  var ts_stop  = 0;
+  var ts_pos   = 0;
+  var ts_speed = 1;
+
+  setTimeout(initialize, 100);
+}

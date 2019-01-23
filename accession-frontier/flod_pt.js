@@ -1,8 +1,8 @@
 /*
   Mini FLOD for Intros
   Protracker
-  version 7.1
-  2018-11-20
+  version 7.2
+  2019-01-22
   Christian Corti
 */
 (function() {
@@ -354,6 +354,7 @@
         if (!this.tickLeft) {
           if (!this.playMode) {
             this.cache = cache.write();
+            this.cache.note.fill(0);
             this.process();
 
             this.cache.volume[0] = this.output[0].audvol;
@@ -719,6 +720,7 @@
 
             voice.period = this.periods[(voice.finetune * 37) + i];
             this.cache.last[voice.index] = voice.period;
+            this.cache.note[voice.index] = voice.period;
 
             if ((voice.step & 0x0ff0) == 0x0ed0) {
               if (voice.funkSpeed) { this.updateFunk(voice); }
@@ -1349,6 +1351,7 @@
 
         o.position = 0;
         o.last   = new Array(4).fill(0);
+        o.note   = new Array(4).fill(0);
         o.sample = new Array(4).fill(0);
         o.volume = new Array(4).fill(0);
 
